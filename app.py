@@ -1,12 +1,12 @@
 from flask import Flask, request, jsonify, abort
+from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from uuid import uuid4
-import re
 import logging
 from functools import wraps
-import jwt
 from datetime import datetime
+from urllib.parse import urlparse
 from config import CONFIG
 from models import db, Job, Transcript
 from celery_app import celery, transcribe_videos
@@ -22,6 +22,7 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
+    CORS(app)  # Enable CORS for all routes
     
     # Initialize rate limiter
     limiter = Limiter(
@@ -48,13 +49,16 @@ def require_api_key(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def extract_video_id(url):
+def validate_callback_url(url):
     """
-    Extracts the YouTube video ID from various URL formats.
+    Validates that callback_url is a proper HTTP(S) URL.
+    Returns True if valid, False otherwise.
     """
-    pattern = r"(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^\"&?\/\s]{11})"
-    match = re.search(pattern, url)
-    return match.group(1) if match else None
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ['http', 'https'], result.netloc])
+    except Exception:
+        return False
 
 @app.route('/')
 def home():
@@ -99,6 +103,10 @@ def transcribe():
         if not callback_url:
             logger.warning("Missing callback_url parameter")
             abort(400, 'Missing required parameter: callback_url')
+        
+        if not validate_callback_url(callback_url):
+            logger.warning(f"Invalid callback_url format: {callback_url}")
+            abort(400, 'callback_url must be a valid HTTP(S) URL')
         
         # Create job record
         job_id = str(uuid4())
@@ -233,5 +241,5 @@ def internal_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=CONFIG.DEBUG)
 
