@@ -26,52 +26,39 @@
 - **Security:** API Key authentication, Rate Limiting
 - **Logging:** Python logging module
 
-## ⚙️ Setup & Installation
+## ⚙️ Quick Setup (see SETUP.md for detailed scenarios)
 
-### Prerequisites
-- Python 3.8+
-- Redis server running locally or accessible via network
-- pip and virtualenv
-
-### 1. Clone and Setup Environment
 ```bash
-git clone <your-repo>
-cd 8020-Transcriber
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# 1. Install dependencies
 pip install -r requirements.txt
+
+# 2. Start Redis & PostgreSQL
+docker-compose up -d
+
+# 3. In separate terminals:
+celery -A celery_app worker --loglevel=info    # Terminal 1: Worker
+python app.py                                   # Terminal 2: API
+
+# 4. Transcribe videos
+python3 transcribe_videos.py                   # Terminal 3: Client
 ```
 
-### 2. Configure Environment Variables
-```bash
-cp .env.example .env
-# Edit .env and set your own API_KEY and SECRET_KEY
-```
+**API available at:** `http://localhost:5000`
 
-### 3. Start Redis (Required)
-```bash
-# Option 1: Using Docker
-docker run -d -p 6379:6379 redis:latest
+**📖 For detailed setup scenarios (Docker, Local, Manual):** See [SETUP.md](SETUP.md)
 
-# Option 2: Local Redis installation
-redis-server
-```
+---
 
-### 4. Start Celery Worker
-```bash
-# In a separate terminal, from project root
-celery -A celery_app worker --loglevel=info
-```
+## 📚 Documentation Map
 
-### 5. Start Flask Application
-```bash
-# In another terminal
-python app.py
-```
+| Document | Purpose |
+|----------|---------|
+| [**SETUP.md**](SETUP.md) | Installation for all scenarios (Docker, Local, Manual) |
+| [**README.md**](README.md) | Architecture, features, API endpoints (this file) |
+| [**HOW_TO_USE.md**](HOW_TO_USE.md) | How to transcribe videos using CLI tools |
+| [**DEPLOYMENT.md**](DEPLOYMENT.md) | Production deployment, scaling, and operations |
 
-The API will be available at `http://localhost:5000`
-
-## 📡 API Endpoints
+---
 
 | Method | Endpoint | Description | Auth |
 |--------|---------|-------------|------|

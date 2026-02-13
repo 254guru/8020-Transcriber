@@ -1,104 +1,16 @@
 # YTScriptify Deployment & Operations Guide
 
-## Quick Start (Development)
+## Quick Start
 
-### Option 1: With Docker (Recommended)
+**For all setup scenarios (Docker, Local Redis, Manual):** See [SETUP.md](SETUP.md)
 
-```bash
-# Start Redis and PostgreSQL
-docker-compose up -d
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Update .env to use PostgreSQL
-# DATABASE_URL=postgresql://transcriber:password123@localhost:5432/transcriber
-
-# Start Celery worker (Terminal 1)
-celery -A celery_app worker --loglevel=info
-
-# Start Flask app (Terminal 2)
-python app.py
-```
-
-### Option 2: With Local Redis
-
-```bash
-# Start Redis (if installed locally)
-redis-server
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start Celery worker (Terminal 1)
-celery -A celery_app worker --loglevel=info
-
-# Start Flask app (Terminal 2)
-python app.py
-```
-
----
-
-## File Structure
-
-```
-8020-Transcriber/
-├── app.py                 # Main Flask application
-├── models.py             # SQLAlchemy models (Job, Transcript)
-├── config.py             # Configuration management
-├── celery_app.py         # Celery task definitions & worker config
-├── requirements.txt      # Python dependencies
-├── .env                  # Environment variables (DO NOT COMMIT)
-├── .env.example          # Template for .env
-├── docker-compose.yml    # Docker services (Redis, PostgreSQL)
-├── README.md             # User-facing documentation
-├── DEPLOYMENT.md         # This file
-└── setup.sh              # Setup script
-```
+This guide covers **production deployment, scaling, and operations**.
 
 ---
 
 ## Key Improvements Made
 
-### 1. **True Asynchronous Processing**
-- **Before:** Blocking API calls; all transcripts fetched synchronously
-- **After:** Jobs queued immediately; processing happens in background workers
-- **Benefit:** API responds instantly; multiple jobs processed in parallel
-
-### 2. **Persistent Storage**
-- **Before:** In-memory `job_store` dictionary (lost on restart)
-- **After:** SQLite/PostgreSQL database with full job/transcript history
-- **Benefit:** Data survives server restarts; audit trail maintained
-
-### 3. **Proper Async Flow**
-- **Before:** Callback sent BEFORE processing completes
-- **After:** Processing completes → callback sent with full results
-- **Benefit:** Client receives actual data, not empty responses
-
-### 4. **Authentication & Security**
-- **Before:** No authentication; anyone can submit jobs
-- **After:** API key required via `X-API-Key` header
-- **Benefit:** Protect from unauthorized access and abuse
-
-### 5. **Rate Limiting**
-- **Before:** No limits; vulnerable to DoS attacks
-- **After:** Configurable rate limits per endpoint
-- **Benefit:** Protects API from being overwhelmed
-
-### 6. **Logging & Observability**
-- **Before:** No logging; debugging was difficult
-- **After:** Structured logging at all critical points
-- **Benefit:** Full visibility into operations; easier troubleshooting
-
-### 7. **Error Handling & Retry Logic**
-- **Before:** Failed transcripts silently ignored
-- **After:** Proper error messages + automatic retry with backoff
-- **Benefit:** More reliable; better error visibility
-
-### 8. **Job Management**
-- **Before:** Only `/transcribe` and `/job_status`
-- **After:** Added `/jobs` listing and `/job_status/{id}` DELETE cancellation
-- **Benefit:** Better job control and visibility
+**See [README.md](README.md#-architecture-v20-improvements) for detailed improvements (async, persistence, security, etc.)**
 
 ---
 

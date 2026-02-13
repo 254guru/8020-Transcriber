@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Example client for YTScriptify API
-Demonstrates how to use the API programmatically
+YTScriptify API Client - Usage Examples
+
+For simple transcription with file saving: python3 transcribe_videos.py
+This file demonstrates how to use the API programmatically in your code.
 """
 
 import requests
 import time
-import json
 from typing import Optional
-import os
-from datetime import datetime
 
 class YTScriptifyClient:
-    def __init__(self, base_url: str, api_key: str):
+    """REST API client for YTScriptify"""
+    
+    def __init__(self, base_url: str = 'http://localhost:5000', api_key: str = 'dev-api-key-12345'):
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
         self.session = requests.Session()
@@ -21,12 +22,11 @@ class YTScriptifyClient:
             'Content-Type': 'application/json'
         })
     
-    def submit_job(self, youtube_urls: list, callback_url: str) -> str:
+    def submit_job(self, youtube_urls: list, callback_url: Optional[str] = None) -> str:
         """Submit a transcription job and return job_id"""
-        payload = {
-            'youtube_urls': youtube_urls,
-            'callback_url': callback_url
-        }
+        payload = {'youtube_urls': youtube_urls}
+        if callback_url:
+            payload['callback_url'] = callback_url
         response = self.session.post(f'{self.base_url}/transcribe', json=payload)
         response.raise_for_status()
         return response.json()['job_id']
@@ -67,7 +67,7 @@ class YTScriptifyClient:
         elapsed = 0
         while elapsed < max_wait:
             status = self.get_status(job_id)
-            print(f"Job {job_id} status: {status['status']}")
+            print(f"  Status: {status['status']}")
             
             if status['status'] in ['completed', 'failed', 'cancelled']:
                 return status
@@ -78,249 +78,87 @@ class YTScriptifyClient:
         raise TimeoutError(f"Job {job_id} did not complete within {max_wait} seconds")
 
 
-def save_transcripts_to_file(job_result: dict, output_dir: str = './transcripts') -> list:
-    """
-    Save transcripts from completed job to .txt files
-    
-    Args:
-        job_result: Job result dict from API
-        output_dir: Directory to save files (created if doesn't exist)
-    
-    Returns:
-        List of saved file paths
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    saved_files = []
-    
-    for transcript_data in job_result['transcripts']:
-        url = transcript_data['url']
-        video_id = transcript_data['video_id']
-        status = transcript_data['status']
-        
-        # Create filename from video ID and timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{video_id}_{timestamp}.txt"
-        filepath = os.path.join(output_dir, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f"YouTube Video Transcript\n")
-            f.write(f"{'=' * 60}\n\n")
-            f.write(f"Video URL: {url}\n")
-            f.write(f"Video ID: {video_id}\n")
-            f.write(f"Status: {status}\n")
-            f.write(f"Transcribed: {transcript_data['created_at']}\n")
-            
-            if status == 'completed':
-                f.write(f"\n{'=' * 60}\n")
-                f.write(f"TRANSCRIPT\n")
-                f.write(f"{'=' * 60}\n\n")
-                
-                # Get transcript data and format it
-                transcript = transcript_data['transcript']
-                if isinstance(transcript, list):
-                    # Each item has 'text', 'start', 'duration'
-                    for item in transcript:
-                        f.write(item['text'])
-                        if not item['text'].endswith(' '):
-                            f.write(' ')
-                else:
-                    f.write(str(transcript))
-            else:
-                f.write(f"\nError: {transcript_data.get('error_message', 'Unknown error')}\n")
-        
-        saved_files.append(filepath)
-        print(f"✓ Saved: {filepath}")
-    
-    return saved_files
-
-
-def transcribe_and_save(youtube_urls: list, output_dir: str = './transcripts', 
-                       base_url: str = 'http://localhost:5000',
-                       api_key: str = 'dev-api-key-12345',
-                       callback_url: str = 'http://localhost:8000/webhook') -> dict:
-    """
-    Transcribe YouTube videos and save results to files
-    
-    Args:
-        youtube_urls: List of YouTube URLs to transcribe
-        output_dir: Directory to save transcript files
-        base_url: API base URL
-        api_key: API key for authentication
-        callback_url: Callback URL for the API
-    
-    Returns:
-        Job result dictionary with file paths added
-    """
-    print(f"\n{'=' * 60}")
-    print(f"YTScriptify - Transcribe and Save")
-    print(f"{'=' * 60}\n")
-    
-    client = YTScriptifyClient(base_url, api_key)
-    
-    print(f"📝 Submitting {len(youtube_urls)} video(s) for transcription...")
-    
-    try:
-        job_id = client.submit_job(youtube_urls, callback_url)
-        print(f"✓ Job submitted: {job_id}\n")
-        
-        print(f"⏳ Waiting for transcription to complete...")
-        print(f"   (This may take a few minutes depending on video length)\n")
-        
-        result = client.wait_for_completion(job_id, poll_interval=3, max_wait=3600)
-        
-        print(f"\n✓ Transcription complete!\n")
-        
-        # Save to files
-        print(f"💾 Saving transcripts to files...\n")
-        saved_files = save_transcripts_to_file(result, output_dir)
-        
-        # Add file paths to result
-        result['saved_files'] = saved_files
-        
-        # Print summary
-        completed = sum(1 for t in result['transcripts'] if t['status'] == 'completed')
-        failed = sum(1 for t in result['transcripts'] if t['status'] == 'failed')
-        
-        print(f"\n{'=' * 60}")
-        print(f"SUMMARY")
-        print(f"{'=' * 60}")
-        print(f"Total videos: {len(youtube_urls)}")
-        print(f"Completed: {completed}")
-        print(f"Failed: {failed}")
-        print(f"Output directory: {os.path.abspath(output_dir)}\n")
-        
-        return result
-    
-    except Exception as e:
-        print(f"\n✗ Error: {e}")
-        raise
-
-
-def interactive_transcribe():
-    """
-    Interactive mode - ask user for YouTube URLs
-    """
-    print(f"\n{'=' * 60}")
-    print(f"🎬 YTScriptify Interactive Transcriber")
-    print(f"{'=' * 60}\n")
-    
-    print("Configuration (press Enter to use defaults):\n")
-    
-    base_url = input("API URL (default: http://localhost:5000): ").strip() or 'http://localhost:5000'
-    api_key = input("API Key (default: dev-api-key-12345): ").strip() or 'dev-api-key-12345'
-    output_dir = input("Output directory (default: ./transcripts): ").strip() or './transcripts'
-    
-    print(f"\n{'=' * 60}\n")
-    print(f"✓ Using API at: {base_url}")
-    print(f"✓ Output dir: {output_dir}\n")
-    print(f"{'=' * 60}\n")
-    
-    print("Enter YouTube URLs (one per line, empty line to finish):\n")
-    urls = []
-    while True:
-        url = input(f"URL {len(urls) + 1}: ").strip()
-        if not url:
-            break
-        urls.append(url)
-    
-    if not urls:
-        print("No URLs provided!")
-        return
-    
-    try:
-        result = transcribe_and_save(
-            urls,
-            output_dir=output_dir,
-            base_url=base_url,
-            api_key=api_key
-        )
-        
-        print(f"✓ All done! Transcripts saved to: {os.path.abspath(output_dir)}")
-        
-    except requests.exceptions.ConnectionError:
-        print(f"\n✗ Error: Could not connect to API at {base_url}")
-        print(f"  Make sure the Flask app is running!")
-    except Exception as e:
-        print(f"\n✗ Error: {e}")
-
-
 def example_basic_usage():
     """Example 1: Basic usage with polling"""
-    print("=" * 60)
-    print("Example 1: Basic Usage with Polling")
-    print("=" * 60)
+    print("=" * 70)
+    print("Example 1: Basic Usage - Submit Job and Poll for Results")
+    print("=" * 70)
     
     client = YTScriptifyClient('http://localhost:5000', 'dev-api-key-12345')
     
-    # Submit job
-    urls = ['https://www.youtube.com/watch?v=w-WRZVPM-tg']
-    job_id = client.submit_job(urls, callback_url='http://localhost:8000/webhook')
-    print(f"✓ Job submitted: {job_id}")
+    urls = ['https://youtu.be/jNQXAC9IVRw']
     
-    # Poll for completion
-    result = client.wait_for_completion(job_id, poll_interval=2)
+    print(f"\n📝 Submitting job for {len(urls)} video(s)...")
+    job_id = client.submit_job(urls)
+    print(f"✓ Job ID: {job_id}\n")
+    
+    print(f"⏳ Polling for completion...")
+    result = client.wait_for_completion(job_id, poll_interval=2, max_wait=60)
     
     if result['status'] == 'completed':
-        print(f"✓ Job completed!")
+        print(f"\n✓ Job completed!")
         for transcript in result['transcripts']:
             print(f"\nVideo: {transcript['url']}")
             print(f"Status: {transcript['status']}")
             if transcript['status'] == 'completed':
                 data = transcript['transcript']
-                print(f"First 100 chars: {str(data)[:100]}...")
+                text = ''.join([item['text'] for item in data]) if isinstance(data, list) else str(data)
+                print(f"Preview: {text[:150]}...")
     else:
-        print(f"✗ Job failed: {result.get('error_message')}")
+        print(f"\n✗ Job failed: {result.get('error_message')}")
     
     print()
 
 
 def example_batch_processing():
     """Example 2: Batch processing multiple URLs"""
-    print("=" * 60)
-    print("Example 2: Batch Processing")
-    print("=" * 60)
+    print("=" * 70)
+    print("Example 2: Batch Processing - Multiple URLs at Once")
+    print("=" * 70)
     
     client = YTScriptifyClient('http://localhost:5000', 'dev-api-key-12345')
     
     urls = [
+        'https://youtu.be/jNQXAC9IVRw',
         'https://youtu.be/dQw4w9WgXcQ',
-        'https://youtu.be/9bZkp7q19f0',
-        'https://youtu.be/kJQP7kiw9Fk'
+        'https://youtu.be/9bZkp7q19f0'
     ]
     
-    job_id = client.submit_job(urls, callback_url='http://localhost:8000/webhook')
-    print(f"✓ Batch job submitted: {job_id}")
-    print(f"  Processing {len(urls)} videos...")
+    print(f"\n📝 Submitting batch job for {len(urls)} videos...")
+    job_id = client.submit_job(urls)
+    print(f"✓ Job ID: {job_id}\n")
     
-    result = client.wait_for_completion(job_id, poll_interval=3, max_wait=600)
+    print(f"⏳ Polling for completion...")
+    result = client.wait_for_completion(job_id, poll_interval=3, max_wait=300)
     
     completed = sum(1 for t in result['transcripts'] if t['status'] == 'completed')
     failed = sum(1 for t in result['transcripts'] if t['status'] == 'failed')
     
-    print(f"\n✓ Results:")
+    print(f"\n✓ Batch Results:")
     print(f"  Completed: {completed}/{len(urls)}")
-    print(f"  Failed: {failed}/{len(urls)}")
+    print(f"  Failed: {failed}/{len(urls)}\n")
     
     for i, transcript in enumerate(result['transcripts'], 1):
-        print(f"\n  [{i}] {transcript['url']}")
-        print(f"      Status: {transcript['status']}")
+        status_icon = "✓" if transcript['status'] == 'completed' else "✗"
+        print(f"  {status_icon} [{i}] {transcript['url']}")
         if transcript['error_message']:
-            print(f"      Error: {transcript['error_message']}")
+            print(f"       Error: {transcript['error_message']}")
     
     print()
 
 
 def example_list_jobs():
-    """Example 3: List and monitor jobs"""
-    print("=" * 60)
+    """Example 3: List and inspect jobs"""
+    print("=" * 70)
     print("Example 3: List All Jobs")
-    print("=" * 60)
+    print("=" * 70)
     
     client = YTScriptifyClient('http://localhost:5000', 'dev-api-key-12345')
     
+    print(f"\n📋 Fetching job list...")
     jobs_data = client.list_jobs(page=1, per_page=5)
     
-    print(f"Total jobs: {jobs_data['total']}")
+    print(f"\nTotal jobs: {jobs_data['total']}")
     print(f"Pages: {jobs_data['pages']}")
     print(f"\nRecent jobs:")
     
@@ -334,23 +172,28 @@ def example_list_jobs():
 
 
 def example_error_handling():
-    """Example 4: Error handling"""
-    print("=" * 60)
+    """Example 4: Handling errors gracefully"""
+    print("=" * 70)
     print("Example 4: Error Handling")
-    print("=" * 60)
+    print("=" * 70)
     
     client = YTScriptifyClient('http://localhost:5000', 'dev-api-key-12345')
     
-    # Try invalid URL
+    print(f"\n📝 Submitting job with invalid URL to show error handling...")
+    
     try:
         urls = ['not-a-youtube-url']
-        job_id = client.submit_job(urls, callback_url='http://localhost:8000/webhook')
+        job_id = client.submit_job(urls)
+        print(f"✓ Job ID: {job_id}\n")
+        
+        print(f"⏳ Polling for completion...")
         result = client.wait_for_completion(job_id, max_wait=30)
         
-        print(f"✓ Job submitted even with invalid URL: {job_id}")
-        print(f"  Status: {result['status']}")
-        print(f"  Transcript status: {result['transcripts'][0]['status']}")
-        print(f"  Error: {result['transcripts'][0]['error_message']}")
+        transcript = result['transcripts'][0]
+        print(f"\n✓ Job completed (with error):")
+        print(f"  URL: {transcript['url']}")
+        print(f"  Status: {transcript['status']}")
+        print(f"  Error: {transcript['error_message']}")
     
     except Exception as e:
         print(f"✗ Error: {e}")
@@ -358,38 +201,78 @@ def example_error_handling():
     print()
 
 
-if __name__ == '__main__':
+def example_callback_url():
+    """Example 5: Using callback URL for notifications"""
+    print("=" * 70)
+    print("Example 5: Callback URL (Webhook Notifications)")
+    print("=" * 70)
+    
+    print("""
+Callbacks allow the API to notify your application when a job completes.
+
+When a job finishes (successfully or with errors), the API sends a POST
+request to your callback_url with the complete job result.
+
+Example:
+    client = YTScriptifyClient(...)
+    job_id = client.submit_job(
+        urls,
+        callback_url='https://your-app.com/webhooks/transcription'
+    )
+
+Your webhook should handle POST requests with this body:
+    {
+        "id": "job-uuid",
+        "status": "completed",
+        "transcripts": [...],
+        "created_at": "2026-02-13T...",
+        "updated_at": "2026-02-13T..."
+    }
+""")
+
+
+def main():
     import sys
     
     print("\n")
-    print("YTScriptify Client - Main Menu")
-    print("=" * 60)
-    print("1. Interactive Mode (enter URLs, save to files)")
-    print("2. Run Examples")
-    print("=" * 60)
+    print("YTScriptify API Client - Examples")
+    print("=" * 70)
+    print("Choose an example to run:\n")
+    print("1. Basic Usage (single video)")
+    print("2. Batch Processing (multiple videos)")
+    print("3. List All Jobs")
+    print("4. Error Handling")
+    print("5. Callback URL (webhook notifications)")
+    print("=" * 70)
     
-    choice = input("\nSelect option (1 or 2): ").strip()
+    choice = input("\nSelect example (1-5): ").strip()
     
     try:
         if choice == '1':
-            interactive_transcribe()
-        else:
-            print("\nRunning Examples...")
-            print("Make sure the API is running on http://localhost:5000\n")
-            
-            # Run examples
             example_basic_usage()
+        elif choice == '2':
             example_batch_processing()
+        elif choice == '3':
             example_list_jobs()
+        elif choice == '4':
             example_error_handling()
-            
-            print("✓ All examples completed!")
+        elif choice == '5':
+            example_callback_url()
+        else:
+            print("Invalid choice!")
+            sys.exit(1)
+        
+        print("✓ Example completed!\n")
     
     except requests.exceptions.ConnectionError:
-        print("✗ Error: Could not connect to API at http://localhost:5000")
-        print("  Make sure the Flask app is running!")
+        print("\n✗ Error: Could not connect to API at http://localhost:5000")
+        print("  Make sure the Flask app is running: python app.py")
         sys.exit(1)
     
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"\n✗ Error: {e}")
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

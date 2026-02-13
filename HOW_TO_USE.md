@@ -1,10 +1,12 @@
 # How to Transcribe YouTube Videos
 
-There are **2 easy ways** to transcribe and save YouTube videos:
+**Prerequisites:** See [SETUP.md](SETUP.md) for installation and startup instructions.
 
-## Option 1: Simple Command (Recommended) ⭐
+Once the API is running, here are the easiest ways to transcribe:
 
-**Most straightforward way to use it:**
+## Quick Start: Command Line (Recommended) ⭐
+
+Most straightforward way to transcribe and save videos:
 
 ```bash
 # Interactive mode - enter URLs one by one
@@ -22,15 +24,20 @@ python3 transcribe_videos.py "https://www.youtube.com/watch?v=..." "https://yout
 
 ---
 
-## Option 2: Example Client (Advanced)
+## Option 2: Python API Examples
+
+For more control or integrating into your own Python code:
 
 ```bash
 python3 example_client.py
 ```
 
 **Menu options:**
-- **Option 1**: Interactive mode (enter URLs, save to files)
-- **Option 2**: Run examples (see API in action)
+- **Option 1**: Basic usage with polling
+- **Option 2**: Batch process multiple videos
+- **Option 3**: List all jobs
+- **Option 4**: Error handling
+- **Option 5**: Webhook callbacks (advanced)
 
 ---
 
@@ -66,23 +73,16 @@ This is the actual transcript text from the YouTube video...
 
 ## Before You Start
 
-Make sure the API is running:
+**Is the API running?** See [SETUP.md](SETUP.md) for startup instructions.
+
+Quick check:
 
 ```bash
-# Terminal 1: Start Redis
-docker-compose up -d redis
-
-# Terminal 2: Start Celery Worker
-celery -A celery_app worker --loglevel=info
-
-# Terminal 3: Start Flask API
-python app.py
+curl http://localhost:5000/
+# Should return: {"status": "ok"}
 ```
 
-Then in Terminal 4, run the transcriber:
-```bash
-python3 transcribe_videos.py
-```
+If that fails, see [SETUP.md](SETUP.md) to start services.
 
 ---
 
