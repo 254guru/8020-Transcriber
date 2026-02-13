@@ -8,6 +8,7 @@
 - **Transcribe videos** → [HOW_TO_USE.md](HOW_TO_USE.md)
 - **Deploy to production** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Use the API in my code** → [example_client.py](example_client.py)
+- **See refactoring improvements** → [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
 - **Transcribe & save files** → `python3 transcribe_videos.py`
 
 ---
@@ -47,8 +48,9 @@ python3 transcribe_videos.py
 ├── README.md                 ← Features & API endpoints
 ├── HOW_TO_USE.md            ← How to transcribe videos
 ├── DEPLOYMENT.md            ← Production deployment
-├── OPTIMIZATION_SUMMARY.md  ← What was optimized
+├── REFACTORING_SUMMARY.md   ← Code quality improvements
 │
+├── client.py                ← Shared API client (NEW)
 ├── app.py                   ← Flask API
 ├── celery_app.py           ← Background worker
 ├── models.py               ← Database models
@@ -102,13 +104,15 @@ CELERY_BROKER_URL=redis://localhost:6379/0
 
 ---
 
-## 📊 What's Been Optimized
+## 🏗️ Architecture Improvements
 
-✅ Removed setup.sh (use SETUP.md instead)
-✅ Consolidated 4 files of setup docs into SETUP.md
-✅ Cleaned up example_client.py (removed duplicate code)
-✅ Added documentation map & cross-references
-✅ Reduced duplication by ~40%
+✅ **Shared API Client** (`client.py`) - Eliminated 60+ lines of duplicate code
+✅ **Clean Separation** - Each tool has single clear purpose:
+   - `client.py` - Reusable API client library
+   - `transcribe_videos.py` - CLI tool for end users
+   - `example_client.py` - API examples for developers
+✅ **Easy Maintenance** - API changes in one place
+✅ **Better Testing** - Can test client independently
 
-See [OPTIMIZATION_SUMMARY.md](OPTIMIZATION_SUMMARY.md) for details.
+See [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md) for details.
 
