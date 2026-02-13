@@ -1,81 +1,13 @@
 #!/usr/bin/env python3
 """
-YTScriptify API Client - Usage Examples
+YTScriptify API Examples - Shows how to use the API in your code
 
-For simple transcription with file saving: python3 transcribe_videos.py
-This file demonstrates how to use the API programmatically in your code.
+See client.py for the YTScriptifyClient class documentation.
+For transcribing videos and saving files, use: transcribe_videos.py
 """
 
 import requests
-import time
-from typing import Optional
-
-class YTScriptifyClient:
-    """REST API client for YTScriptify"""
-    
-    def __init__(self, base_url: str = 'http://localhost:5000', api_key: str = 'dev-api-key-12345'):
-        self.base_url = base_url.rstrip('/')
-        self.api_key = api_key
-        self.session = requests.Session()
-        self.session.headers.update({
-            'X-API-Key': self.api_key,
-            'Content-Type': 'application/json'
-        })
-    
-    def submit_job(self, youtube_urls: list, callback_url: Optional[str] = None) -> str:
-        """Submit a transcription job and return job_id"""
-        payload = {'youtube_urls': youtube_urls}
-        if callback_url:
-            payload['callback_url'] = callback_url
-        response = self.session.post(f'{self.base_url}/transcribe', json=payload)
-        response.raise_for_status()
-        return response.json()['job_id']
-    
-    def get_status(self, job_id: str) -> dict:
-        """Get current status of a job"""
-        response = self.session.get(f'{self.base_url}/job_status/{job_id}')
-        response.raise_for_status()
-        return response.json()
-    
-    def list_jobs(self, page: int = 1, per_page: int = 10) -> dict:
-        """List all jobs with pagination"""
-        response = self.session.get(
-            f'{self.base_url}/jobs',
-            params={'page': page, 'per_page': per_page}
-        )
-        response.raise_for_status()
-        return response.json()
-    
-    def cancel_job(self, job_id: str) -> dict:
-        """Cancel a pending job"""
-        response = self.session.delete(f'{self.base_url}/job_status/{job_id}')
-        response.raise_for_status()
-        return response.json()
-    
-    def wait_for_completion(self, job_id: str, poll_interval: int = 5, max_wait: int = 300) -> dict:
-        """
-        Poll job status until completion
-        
-        Args:
-            job_id: Job ID to monitor
-            poll_interval: Seconds between polls (default 5)
-            max_wait: Maximum seconds to wait (default 300 = 5 minutes)
-        
-        Returns:
-            Completed job data
-        """
-        elapsed = 0
-        while elapsed < max_wait:
-            status = self.get_status(job_id)
-            print(f"  Status: {status['status']}")
-            
-            if status['status'] in ['completed', 'failed', 'cancelled']:
-                return status
-            
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-        
-        raise TimeoutError(f"Job {job_id} did not complete within {max_wait} seconds")
+from client import YTScriptifyClient
 
 
 def example_basic_usage():
@@ -232,6 +164,7 @@ Your webhook should handle POST requests with this body:
 
 
 def main():
+    """Main menu"""
     import sys
     
     print("\n")
