@@ -54,7 +54,7 @@ python3 transcribe_videos.py
 
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Install Python dependencies
 pip install -r requirements.txt
